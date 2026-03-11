@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>בונה קורות חיים AI | מקצועי בעברית</title>
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Assistant', sans-serif; direction: rtl; background: #0a0a1a; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0a1a; }
+    ::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.3); border-radius: 3px; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .fade-in { animation: fadeIn 0.5s ease forwards; }
+
+    @media print {
+      #cv-preview { box-shadow: none !important; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState } = React;
+
+const GOLD = "#d4af37";
+const GOLD_LIGHT = "#f0d060";
+const BG = "#0a0a1a";
+const BG2 = "#0f0f2a";
+const TEXT = "#f0ead6";
+const STEPS_LABELS = ["פרטים אישיים", "ניסיון תעסוקתי", "השכלה", "כישורים", "סיכום"];
+
+const iStyle = {
+  width: "100%", background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(212,175,55,0.3)", borderRadius: "8px",
+  padding: "12px 14px", color: TEXT, fontSize: "14px",
+  outline: "none", fontFamily: "'Assistant',sans-serif",
+  transition: "border-color 0.2s",
+};
+const lStyle = {
+  display: "block", color: GOLD, fontSize: "12px",
+  fontWeight: "700", letterSpacing: "0.08em",
+  marginBottom: "6px", textTransform: "uppercase",
+};
+
+function Field({ label, value, onChange, placeholder, type = "text" }) {
+  return (
+    <div style={{ marginBottom: "18px" }}>
+      <label style={lStyle}>{label}</label>
+      <input type={type} value={value} onChange={e => onChange(e.target.value)}
+        placeholder={placeholder} style={iStyle}
+        onFocus={e => e.target.style.borderColor = GOLD}
+        onBlur={e => e.target.style.borderColor = "rgba(212,175,55,0.3)"} />
+    </div>
+  );
+}
+
+function Area({ label, value, onChange, placeholder, rows = 3 }) {
+  return (
+    <div style={{ marginBottom: "18px" }}>
+      <label style={lStyle}>{label}</label>
+      <textarea value={value} onChange={e => onChange(e.target.value)}
+        placeholder={placeholder} rows={rows}
+        style={{ ...iStyle, resize: "vertical", lineHeight: "1.6" }}
+        onFocus={e => e.target.style.borderColor = GOLD}
+        onBlur={e => e.target.style.borderColor = "rgba(212,175,55,0.3)"} />
+    </div>
+  );
+}
+
+function Step0({ d, s }) {
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <Field label="שם פרטי" value={d.firstName} onChange={v => s({ ...d, firstName: v })} placeholder="ישראל" />
+        <Field label="שם משפחה" value={d.lastName} onChange={v => s({ ...d, lastName: v })} placeholder="ישראלי" />
+      </div>
+      <Field label="תפקיד מבוקש" value={d.role} onChange={v => s({ ...d, role: v })} placeholder="מנהל מוצר / מפתח Full Stack / ..." />
+      <Field label="טלפון" value={d.phone} onChange={v => s({ ...d, phone: v })} placeholder="050-0000000" />
+      <Field label="אימייל" value={d.email} onChange={v => s({ ...d, email: v })} placeholder="israel@gmail.com" type="email" />
+      <Field label="עיר מגורים" value={d.city} onChange={v => s({ ...d, city: v })} placeholder="תל אביב" />
+      <Field label="לינקדאין (אופציונלי)" value={d.linkedin} onChange={v => s({ ...d, linkedin: v })} placeholder="linkedin.com/in/yourname" />
+    </div>
+  );
+}
+
+function Step1({ d, s }) {
+  const add = () => s({ ...d, jobs: [...d.jobs, { company: "", role: "", years: "", description: "" }] });
+  const upd = (i, f, v) => { const j = [...d.jobs]; j[i] = { ...j[i], [f]: v }; s({ ...d, jobs: j }); };
+  const del = (i) => { if (d.jobs.length > 1) { const j = d.jobs.filter((_, idx) => idx !== i); s({ ...d, jobs: j }); }};
+  return (
+    <div>
+      {d.jobs.map((job, i) => (
+        <div key={i} style={{ background: "rgba(212,175,55,0.04)", border: "1px solid rgba(212,175,55,0.15)", borderRadius: "10px", padding: "16px", marginBottom: "16px", position: "relative" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+            <span style={{ color: GOLD, fontSize: "13px", fontWeight: "700" }}>תפקיד {i + 1}</span>
+            {d.jobs.length > 1 && <button onClick={() => del(i)} style={{ background: "none", border: "none", color: "rgba(240,100,100,0.6)", cursor: "pointer", fontSize: "18px" }}>×</button>}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+            <Field label="חברה" value={job.company} onChange={v => upd(i, "company", v)} placeholder="גוגל / סטארט-אפ X" />
+            <Field label="תפקיד" value={job.role} onChange={v => upd(i, "role", v)} placeholder="מפתח Backend" />
+          </div>
+          <Field label="שנים" value={job.years} onChange={v => upd(i, "years", v)} placeholder="2021–2024" />
+          <Area label="תיאור קצר" value={job.description} onChange={v => upd(i, "description", v)} placeholder="פתחתי, ניהלתי, הובלתי..." rows={3} />
+        </div>
+      ))}
+      <button onClick={add} style={{ background: "transparent", border: "1px dashed rgba(212,175,55,0.4)", color: GOLD, padding: "10px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "14px", fontFamily: "'Assistant',sans-serif", width: "100%" }}>
+        + הוסף תפקיד נוסף
+      </button>
+    </div>
+  );
+}
+
+function Step2({ d, s }) {
+  const add = () => s({ ...d, edu: [...d.edu, { school: "", degree: "", years: "" }] });
+  const upd = (i, f, v) => { const e = [...d.edu]; e[i] = { ...e[i], [f]: v }; s({ ...d, edu: e }); };
+  return (
+    <div>
+      {d.edu.map((e, i) => (
+        <div key={i} style={{ background: "rgba(212,175,55,0.04)", border: "1px solid rgba(212,175,55,0.15)", borderRadius: "10px", padding: "16px", marginBottom: "16px" }}>
+          <div style={{ color: GOLD, fontSize: "13px", fontWeight: "700", marginBottom: "14px" }}>לימודים {i + 1}</div>
+          <Field label="מוסד לימודים" value={e.school} onChange={v => upd(i, "school", v)} placeholder="אוניברסיטת תל אביב" />
+          <Field label="תואר / תעודה" value={e.degree} onChange={v => upd(i, "degree", v)} placeholder="B.Sc מדעי המחשב" />
+          <Field label="שנים" value={e.years} onChange={v => upd(i, "years", v)} placeholder="2018–2022" />
+        </div>
+      ))}
+      <button onClick={add} style={{ background: "transparent", border: "1px dashed rgba(212,175,55,0.4)", color: GOLD, padding: "10px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "14px", fontFamily: "'Assistant',sans-serif", width: "100%" }}>
+        + הוסף לימודים נוספים
+      </button>
+    </div>
+  );
+}
+
+function Step3({ d, s }) {
+  return (
+    <div>
+      <Area label="כישורים טכניים" value={d.techSkills} onChange={v => s({ ...d, techSkills: v })} placeholder="Python, React, SQL, AWS, Figma..." rows={3} />
+      <Area label="שפות" value={d.languages} onChange={v => s({ ...d, languages: v })} placeholder="עברית — שפת אם, אנגלית — גבוהה מאוד" rows={2} />
+      <Area label="כישורים רכים" value={d.softSkills} onChange={v => s({ ...d, softSkills: v })} placeholder="ניהול צוות, עבודה בלחץ, חשיבה אנליטית..." rows={2} />
+      <Area label="הסמכות / קורסים (אופציונלי)" value={d.certs} onChange={v => s({ ...d, certs: v })} placeholder="AWS Certified Developer..." rows={2} />
+    </div>
+  );
+}
+
+function Step4({ d, s }) {
+  return (
+    <div>
+      <Area label="על עצמי / פרופיל" value={d.summary} onChange={v => s({ ...d, summary: v })} placeholder="ספר/י מי אתה/את, מה מניע אותך ומה אתה/את מחפש/ת..." rows={4} />
+      <Area label="הישגים בולטים (אופציונלי)" value={d.achievements} onChange={v => s({ ...d, achievements: v })} placeholder="חיסכון של X%, הובלת פרויקט ש..." rows={3} />
+    </div>
+  );
+}
+
+function CVPreview({ cv, showWatermark }) {
+  return (
+    <div id="cv-preview" style={{ background: "#fff", color: "#1a1a2e", padding: "40px 44px", fontFamily: "'Assistant',sans-serif", fontSize: "13px", lineHeight: "1.8", direction: "rtl", borderRadius: "12px", boxShadow: "0 20px 60px rgba(0,0,0,0.5)", position: "relative", whiteSpace: "pre-wrap" }}>
+      {showWatermark && (
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 10, opacity: 0.07, fontSize: "64px", fontWeight: "900", color: GOLD, transform: "rotate(-30deg)", letterSpacing: "4px" }}>
+          CV BUILDER AI
+        </div>
+      )}
+      <div style={{ position: "relative", zIndex: 1 }}>{cv}</div>
+    </div>
+  );
+}
+
+function App() {
+  const [screen, setScreen] = useState("landing"); // landing | form | result
+  const [formStep, setFormStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [cv, setCv] = useState("");
+  const [paid, setPaid] = useState(false);
+
+  const [p, setP] = useState({ firstName: "", lastName: "", role: "", phone: "", email: "", city: "", linkedin: "" });
+  const [exp, setExp] = useState({ jobs: [{ company: "", role: "", years: "", description: "" }] });
+  const [edu, setEdu] = useState({ edu: [{ school: "", degree: "", years: "" }] });
+  const [sk, setSk] = useState({ techSkills: "", languages: "", softSkills: "", certs: "" });
+  const [sum, setSum] = useState({ summary: "", achievements: "" });
+
+  const generateCV = async () => {
+    setLoading(true);
+    try {
+      const prompt = `אתה מומחה לכתיבת קורות חיים בעברית ברמה גבוהה מאוד.
+צור קורות חיים מקצועיים, נקיים ומרשימים בעברית עבור:
+
+שם: ${p.firstName} ${p.lastName}
+תפקיד מבוקש: ${p.role}
+טלפון: ${p.phone} | אימייל: ${p.email} | עיר: ${p.city}${p.linkedin ? ` | ${p.linkedin}` : ""}
+
+ניסיון תעסוקתי:
+${exp.jobs.map(j => `• ${j.role} ב-${j.company} (${j.years}): ${j.description}`).join("\n")}
+
+השכלה:
+${edu.edu.map(e => `• ${e.degree}, ${e.school} (${e.years})`).join("\n")}
+
+כישורים טכניים: ${sk.techSkills}
+שפות: ${sk.languages}
+כישורים רכים: ${sk.softSkills}
+${sk.certs ? `הסמכות: ${sk.certs}` : ""}
+
+על עצמי: ${sum.summary}
+${sum.achievements ? `הישגים: ${sum.achievements}` : ""}
+
+הנחיות עיצוב:
+1. פתח בכותרת עם שם מלא ופרטי קשר
+2. כתוב פרופיל מקצועי משכנע (3-4 משפטים)
+3. פרק ניסיון עם הישגים מספריים
+4. פרקי השכלה, כישורים, שפות
+5. עברית מקצועית ונקייה
+6. הפרד סקציות עם: ────────────────
+7. השתמש ב• לרשימות
+
+כתוב עכשיו:`;
+
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      const data = await res.json();
+      const text = (data.content || []).map(c => c.text || "").join("");
+      setCv(text);
+      setScreen("result");
+    } catch(e) {
+      alert("שגיאה: " + e.message);
+    }
+    setLoading(false);
+  };
+
+  const handleNext = () => {
+    if (formStep < 4) setFormStep(formStep + 1);
+    else generateCV();
+  };
+
+  const handleBack = () => {
+    if (formStep > 0) setFormStep(formStep - 1);
+    else setScreen("landing");
+  };
+
+  const downloadPDF = () => {
+    window.print();
+  };
+
+  // ─── LANDING ───────────────────────────────────────────
+  if (screen === "landing") return (
+    <div style={{ minHeight: "100vh", background: `linear-gradient(135deg, ${BG} 0%, ${BG2} 50%, ${BG} 100%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 20px", position: "relative", overflow: "hidden" }}>
+      {/* orbs */}
+      <div style={{ position: "absolute", top: "8%", right: "8%", width: "320px", height: "320px", background: "radial-gradient(circle, rgba(212,175,55,0.09) 0%, transparent 70%)", borderRadius: "50%", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", bottom: "8%", left: "8%", width: "400px", height: "400px", background: "radial-gradient(circle, rgba(100,120,255,0.06) 0%, transparent 70%)", borderRadius: "50%", pointerEvents: "none" }} />
+
+      <div className="fade-in" style={{ textAlign: "center", maxWidth: "680px", position: "relative", zIndex: 1 }}>
+        <div style={{ display: "inline-block", background: "rgba(212,175,55,0.1)", border: `1px solid rgba(212,175,55,0.3)`, borderRadius: "100px", padding: "6px 20px", marginBottom: "32px", color: GOLD, fontSize: "13px", fontWeight: "600", letterSpacing: "0.1em" }}>
+          ✦ מופעל על ידי Claude AI
+        </div>
+
+        <h1 style={{ fontSize: "clamp(36px, 8vw, 66px)", fontWeight: "900", color: TEXT, margin: "0 0 16px", lineHeight: "1.1", letterSpacing: "-0.02em" }}>
+          קורות חיים<br />
+          <span style={{ background: `linear-gradient(90deg, ${GOLD}, ${GOLD_LIGHT}, ${GOLD})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+            שפותחים דלתות
+          </span>
+        </h1>
+
+        <p style={{ color: "rgba(240,234,214,0.65)", fontSize: "18px", lineHeight: "1.8", margin: "0 0 44px" }}>
+          בינה מלאכותית כותבת עבורך קורות חיים מקצועיים בעברית<br />
+          תוך 2 דקות בלבד. <strong style={{ color: GOLD }}>פעם אחת, 19 ₪ בלבד.</strong>
+        </p>
+
+        <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap", marginBottom: "44px" }}>
+          {["✓ עברית מושלמת", "✓ מותאם לתעשייה", "✓ PDF מוכן לשליחה", "✓ 2 דקות"].map(f => (
+            <span key={f} style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", color: GOLD, padding: "8px 16px", borderRadius: "100px", fontSize: "14px", fontWeight: "600" }}>{f}</span>
+          ))}
+        </div>
+
+        <button onClick={() => setScreen("form")}
+          style={{ background: `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})`, color: BG, padding: "18px 52px", borderRadius: "12px", border: "none", fontSize: "18px", fontWeight: "800", cursor: "pointer", fontFamily: "'Assistant',sans-serif", boxShadow: `0 8px 36px rgba(212,175,55,0.35)`, letterSpacing: "-0.01em", transition: "transform 0.2s, box-shadow 0.2s" }}
+          onMouseEnter={e => { e.target.style.transform = "scale(1.04)"; e.target.style.boxShadow = "0 12px 48px rgba(212,175,55,0.5)"; }}
+          onMouseLeave={e => { e.target.style.transform = "scale(1)"; e.target.style.boxShadow = "0 8px 36px rgba(212,175,55,0.35)"; }}>
+          ← צור את קורות החיים שלי
+        </button>
+
+        <p style={{ color: "rgba(240,234,214,0.3)", fontSize: "13px", marginTop: "16px" }}>
+          ללא הרשמה · ללא מנוי · תשלום רק אם אהבת
+        </p>
+
+        {/* Social proof */}
+        <div style={{ marginTop: "48px", display: "flex", gap: "32px", justifyContent: "center", flexWrap: "wrap" }}>
+          {[["2 דקות", "זמן ממוצע"], ["עברית", "שפה מקצועית"], ["19 ₪", "תשלום חד-פעמי"]].map(([v, l]) => (
+            <div key={l} style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "24px", fontWeight: "800", color: GOLD }}>{v}</div>
+              <div style={{ fontSize: "12px", color: "rgba(240,234,214,0.4)", marginTop: "2px" }}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ─── FORM ───────────────────────────────────────────────
+  if (screen === "form") {
+    const steps = [
+      <Step0 d={p} s={setP} />,
+      <Step1 d={exp} s={setExp} />,
+      <Step2 d={edu} s={setEdu} />,
+      <Step3 d={sk} s={setSk} />,
+      <Step4 d={sum} s={setSum} />,
+    ];
+
+    return (
+      <div style={{ minHeight: "100vh", background: `linear-gradient(135deg, ${BG} 0%, ${BG2} 100%)`, display: "flex", flexDirection: "column", alignItems: "center", padding: "30px 20px" }}>
+        <div className="fade-in" style={{ width: "100%", maxWidth: "560px" }}>
+          {/* Header */}
+          <div style={{ textAlign: "center", marginBottom: "28px" }}>
+            <div style={{ color: GOLD, fontSize: "12px", fontWeight: "700", letterSpacing: "0.14em", marginBottom: "6px" }}>
+              שלב {formStep + 1} מתוך 5
+            </div>
+            <h2 style={{ color: TEXT, margin: "0", fontSize: "22px", fontWeight: "800" }}>
+              {STEPS_LABELS[formStep]}
+            </h2>
+            <div style={{ background: "rgba(255,255,255,0.07)", height: "3px", borderRadius: "100px", marginTop: "14px", overflow: "hidden" }}>
+              <div style={{ background: `linear-gradient(90deg, ${GOLD}, ${GOLD_LIGHT})`, height: "100%", width: `${((formStep + 1) / 5) * 100}%`, borderRadius: "100px", transition: "width 0.4s ease" }} />
+            </div>
+          </div>
+
+          {/* Card */}
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(212,175,55,0.12)", borderRadius: "16px", padding: "26px", marginBottom: "18px" }}>
+            {steps[formStep]}
+          </div>
+
+          {/* Buttons */}
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button onClick={handleBack}
+              style={{ flex: 1, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(240,234,214,0.55)", padding: "14px", borderRadius: "10px", cursor: "pointer", fontSize: "15px", fontFamily: "'Assistant',sans-serif", fontWeight: "600" }}>
+              ← חזור
+            </button>
+            <button onClick={handleNext} disabled={loading}
+              style={{ flex: 2, background: loading ? "rgba(212,175,55,0.35)" : `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})`, color: BG, padding: "14px", borderRadius: "10px", border: "none", cursor: loading ? "wait" : "pointer", fontSize: "15px", fontFamily: "'Assistant',sans-serif", fontWeight: "800", transition: "opacity 0.2s" }}>
+              {loading ? "⏳ יוצר קורות חיים..." : formStep === 4 ? "✨ צור קורות חיים" : "המשך →"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── RESULT ─────────────────────────────────────────────
+  if (screen === "result") return (
+    <div style={{ minHeight: "100vh", background: `linear-gradient(135deg, ${BG} 0%, ${BG2} 100%)`, padding: "28px 20px" }}>
+      <div className="fade-in no-print" style={{ maxWidth: "760px", margin: "0 auto 24px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "14px", marginBottom: "24px" }}>
+          <div>
+            <div style={{ color: GOLD, fontSize: "12px", fontWeight: "700", letterSpacing: "0.1em" }}>תצוגה מקדימה</div>
+            <h2 style={{ color: TEXT, margin: "4px 0 0", fontSize: "22px", fontWeight: "800" }}>קורות החיים שלך מוכנים ✨</h2>
+          </div>
+          <button
+            onClick={() => {
+              if (!paid) {
+                const ok = confirm("💳 לתשלום של 19 ₪ תועבר לדף תשלום מאובטח.\n\nבגרסה הסופית — חבר כאן Stripe או PayPal.\n\nלחץ OK לסימולציה של תשלום מוצלח.");
+                if (ok) setPaid(true);
+              } else {
+                downloadPDF();
+              }
+            }}
+            style={{ background: paid ? "linear-gradient(135deg, #22c55e, #16a34a)" : `linear-gradient(135deg, ${GOLD}, ${GOLD_LIGHT})`, color: BG, padding: "13px 26px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "15px", fontFamily: "'Assistant',sans-serif", fontWeight: "800", boxShadow: paid ? "0 4px 20px rgba(34,197,94,0.3)" : `0 4px 20px rgba(212,175,55,0.3)` }}>
+            {paid ? "🖨️ הדפס / שמור PDF" : "💳 שלם 19 ₪ והורד PDF"}
+          </button>
+        </div>
+
+        {!paid && (
+          <div style={{ background: "rgba(212,175,55,0.08)", border: "1px solid rgba(212,175,55,0.2)", borderRadius: "10px", padding: "12px 18px", marginBottom: "20px", color: "rgba(240,234,214,0.7)", fontSize: "13px" }}>
+            👁️ תצוגה מקדימה עם סימן מים · לאחר תשלום — PDF נקי מוכן לשליחה
+          </div>
+        )}
+      </div>
+
+      <div style={{ maxWidth: "760px", margin: "0 auto" }}>
+        <CVPreview cv={cv} showWatermark={!paid} />
+      </div>
+
+      <div className="no-print" style={{ textAlign: "center", marginTop: "20px" }}>
+        <button onClick={() => { setScreen("landing"); setFormStep(0); setCv(""); setPaid(false); }}
+          style={{ background: "transparent", border: "none", color: "rgba(212,175,55,0.45)", cursor: "pointer", fontSize: "14px", fontFamily: "'Assistant',sans-serif" }}>
+          ← חזור לדף הבית
+        </button>
+      </div>
+    </div>
+  );
+
+  return null;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
